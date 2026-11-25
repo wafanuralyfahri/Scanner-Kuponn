@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scanner Kupon Zakat</title>
+<style>
+:root{--bg:#f3f1ea;--fg:#1c2b24;--card:#fff;--mut:#66736c;--line:#d9d5c8;--ok:#1d7a47;--warn:#b86e00;--bad:#b83227;--btn:#1c4a38}
+@media(prefers-color-scheme:dark){:root{--bg:#121815;--fg:#eaf0ec;--card:#1b2420;--mut:#98a79f;--line:#2e3a34;--btn:#3e8a68}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:480px;margin-inline:auto}
+h1{font-size:1.3rem;margin:0 0 4px}
+.mut{color:var(--mut);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+input{width:100%;padding:12px;font-size:1rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+button{padding:12px 16px;font-size:1rem;border:0;border-radius:8px;background:var(--btn);color:#fff;cursor:pointer}
+button.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.row{display:flex;gap:8px;margin-top:8px}
+#reader{width:100%;border-radius:8px;overflow:hidden}
+#hasil{display:none;text-align:center;color:#fff;border-radius:10px;padding:18px;margin:12px 0}
+#hasil b{display:block;font-size:1.8rem;line-height:1.2}
+#hasil span{font-size:1.1rem;font-variant-numeric:tabular-nums}
+.BERHASIL,.DIBATALKAN{background:var(--ok)}.SUDAH{background:var(--warn)}.INVALID{background:var(--bad)}
+</style>
+</head>
+<body>
+<h1>Scanner Kupon Zakat</h1>
+
+<div id="login" class="card">
+  <label for="pin">Masukkan PIN petugas</label>
+  <input id="pin" type="password" autocomplete="off">
+  <div class="row"><button id="btnLogin">Masuk</button></div>
+  <p id="err" class="mut"></p>
+</div>
+
+<div id="app" hidden>
+  <p class="mut" id="info"></p>
+  <div id="hasil" role="status" aria-live="assertive"></div>
+  <div class="card"><div id="reader"></div></div>
+  <div class="card">
+    <label for="manual">Ketik kode manual</label>
+    <input id="manual" inputmode="numeric" autocomplete="off">
+    <div class="row">
+      <button id="btnManual">Periksa kode</button>
+      <button id="btnUndo" class="alt" hidden>Batalkan pakai</button>
+    </div>
+  </div>
+  <button class="alt" id="btnKeluar">Keluar</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+const API = https://script.google.com/macros/s/AKfycbw0kOibgwGydXLITRCNEcpehhsx0neVj1BeXuetrMB8qFzs2tJsgXZc2GP5Z2q_3dRr7w/exec ;   // URL dari Deploy > Web app
+let pin = localStorage.getItem('pin') || '', role = '', busy = false, last = '', lastT = 0, scanner;
+const $ = id => document.getElementById(id);
+
+async function kirim(data) {
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ pin }, data)) });
+  return r.json();
+}
+
+async function login() {
+  $('err').textContent = '';
+  pin = $('pin').value.trim() || pin;
+  try {
+    const d = await kirim({ act: 'login' });
+    if (!d.ok) { $('err').textContent = 'PIN salah.'; return; }
+    localStorage.setItem('pin', pin);
+    role = d.role;
+    $('login').hidden = true; $('app').hidden = false;
+    $('btnUndo').hidden = role !== 'admin';
+    info(d);
+    mulai();
+  } catch (e) { $('err').textContent = 'Gagal terhubung. Periksa internet dan URL API.'; }
+}
+
+function info(d) {
+  $('info').textContent = d.nama + ' · ' + d.device + ' · Terpakai ' + d.terpakai + ' dari ' + d.total;
+}
+
+function tampil(d) {
+  const h = $('hasil');
+  const map = { 'BERHASIL': ['BERHASIL', 'BERHASIL'], 'SUDAH DIPAKAI': ['SUDAH', 'SUDAH DIGUNAKAN'],
+    'INVALID': ['INVALID', 'INVALID'], 'DIBATALKAN': ['DIBATALKAN', 'DIBATALKAN'] };
+  const m = map[d.hasil] || ['INVALID', d.hasil || 'ERROR'];
+  h.className = m[0]; h.style.display = 'block';
+  h.innerHTML = '<b>' + m[1] + '</b><span>' + (d.kode || '') + '</span>';
+  if (navigator.vibrate) navigator.vibrate(d.hasil === 'BERHASIL' ? 120 : [200, 100, 200]);
+}
+
+async function proses(kode, act) {
+  kode = String(kode).trim();
+  if (!kode || busy || (kode === last && Date.now() - lastT < 5000)) return;
+  busy = true; last = kode; lastT = Date.now();
+  try {
+    const d = await kirim({ act: act || 'scan', kode });
+    if (d.hasil === 'PIN SALAH') { localStorage.removeItem('pin'); location.reload(); return; }
+    tampil(d);
+    if (d.total) { const t = $('info').textContent.split(' · '); $('info').textContent = t[0] + ' · ' + t[1] + ' · Terpakai ' + d.terpakai + ' dari ' + d.total; }
+  } catch (e) { tampil({ hasil: 'GAGAL TERHUBUNG', kode }); }
+  setTimeout(() => busy = false, 1500);
+}
+
+function mulai() {
+  if (scanner) return;
+  scanner = new Html5Qrcode('reader', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128] });
+  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 160 } },
+    txt => proses(txt), () => {}).catch(() => { $('reader').textContent = 'Kamera tidak bisa dibuka. Izinkan akses kamera.'; });
+}
+
+$('btnLogin').onclick = login;
+$('btnManual').onclick = () => { proses($('manual').value); $('manual').value = ''; };
+$('btnUndo').onclick = () => { last = ''; proses($('manual').value, 'undo'); $('manual').value = ''; };
+$('btnKeluar').onclick = () => { localStorage.removeItem('pin'); location.reload(); };
+if (pin) login();
+</script>
+</body>
+</html>
