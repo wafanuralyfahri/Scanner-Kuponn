@@ -105,7 +105,7 @@ async function proses(kode, act) {
 function mulai() {
   if (scanner) return;
   scanner = new Html5Qrcode('reader', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128] });
-  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 160 } },
+  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 250 } },
     txt => proses(txt), () => {}).catch(() => { $('reader').textContent = 'Kamera tidak bisa dibuka. Izinkan akses kamera.'; });
 }
 
