@@ -8,6 +8,7 @@
 :root{--bg:#f3f1ea;--fg:#1c2b24;--card:#fff;--mut:#66736c;--line:#d9d5c8;--ok:#1d7a47;--warn:#b86e00;--bad:#b83227;--btn:#1c4a38}
 @media(prefers-color-scheme:dark){:root{--bg:#121815;--fg:#eaf0ec;--card:#1b2420;--mut:#98a79f;--line:#2e3a34;--btn:#3e8a68}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:520px;margin-inline:auto}
 h1{font-size:1.3rem;margin:0 0 4px}
 .mut{color:var(--mut);font-size:.9rem}
@@ -87,7 +88,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbw0kOibgwGydXLITRCNEcpehhsx0neVj1BeXuetrMB8qFzs2tJsgXZc2GP5Z2q_3dRr7w/exec';   // URL dari Deploy > Web app
+const API = 'https://script.google.com/macros/library/d/1H3mhdfhYyne8NIZHgVfU7I8b3Q56VhSJMk-xvro84Zqa9wVJZoctHDWp/4';   // URL dari Deploy > Web app
 let pin = localStorage.getItem('pin') || '', role = '', busy = false, last = '', lastT = 0, scanner, ident = '', tab = 'scan', daftar = [];
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -111,7 +112,12 @@ async function login(auto) {
       return;
     }
     localStorage.setItem('pin', pin);
-    role = d.role; $('btnUndo').hidden = $('nav').hidden = role !== 'admin';
+    role = d.role;
+    if (role === 'admin') {
+      $('btnUndo').hidden = $('nav').hidden = false;
+      setTimeout(() => { muatKupon(false, true); muatAkun(true); }, 300); // data admin disiapkan lebih dulu
+      setInterval(() => { if (tab === 'kupon') muatKupon(false, true); else if (tab === 'akun') muatAkun(true); }, 20000);
+    } else ['nav', 'pkupon', 'pakun'].forEach(id => $(id).remove()); // menu admin dihapus total untuk petugas
     if (!auto) buka();
     ident = d.nama + ' · ' + d.device; render(d);
     setInterval(() => kirim({ act: 'ping' }).catch(() => {}), 120000); // tanda aktif + jaga server hangat
@@ -159,17 +165,21 @@ function pilih(t) {
   tab = t;
   ['scan', 'kupon', 'akun'].forEach(x => $('p' + x).hidden = x !== t);
   document.querySelectorAll('#nav button').forEach(b => b.className = b.dataset.t === t ? 'on' : 'alt');
-  if (t === 'kupon') muatKupon(false);
-  if (t === 'akun') muatAkun();
+  if (t === 'kupon') { renderKupon(); muatKupon(false, true); }
+  if (t === 'akun') { renderAkun(); muatAkun(true); }
 }
 
-async function muatKupon(segar) {
-  $('ketK').textContent = 'Memuat…';
-  try { const d = await kirim({ act: 'daftar', segar: !!segar }); daftar = d.daftar; render(d); renderKupon(); }
-  catch (e) { $('ketK').textContent = 'Gagal memuat.'; }
+const sibuk = {}; let loadedK = false, akunData = null;
+async function muatKupon(segar, diam) {
+  if (sibuk.k) return; sibuk.k = true;
+  if (segar) $('ketK').textContent = 'Memuat…';
+  try { const d = await kirim({ act: 'daftar', segar: !!segar }); daftar = d.daftar; loadedK = true; render(d); renderKupon(); }
+  catch (e) { if (!diam) $('ketK').textContent = 'Gagal memuat.'; }
+  sibuk.k = false;
 }
 
 function renderKupon() {
+  if (!loadedK) { $('ketK').textContent = 'Memuat…'; return; }
   const f = $('cari').value.trim(), st = $('filter').value, rows = [];
   daftar.forEach((r, i) => {
     if ((st === '1' && !r[1]) || (st === '0' && r[1]) || (f && !r[0].includes(f))) return;
@@ -192,15 +202,20 @@ async function batalkan(k) {
   } catch (e) { alert('Gagal terhubung.'); }
 }
 
-async function muatAkun() {
-  $('ketA').textContent = 'Memuat…';
-  try {
-    const a = (await kirim({ act: 'akun' })).akun.sort((x, y) => y.online - x.online);
-    $('ketA').textContent = a.filter(x => x.online).length + ' aktif · ' + a.filter(x => !x.online).length + ' nonaktif';
-    $('listA').innerHTML = a.map(x => '<div class="it"><div><b>' + esc(x.nama) + '</b> <span class="tag ' + (x.online ? 'on">Aktif' : 'off">Nonaktif') + '</span>' +
-      '<div class="mut">' + esc(x.device) + ' · ' + esc(x.role) + '</div>' +
-      '<div class="mut">' + x.scan + ' scan berhasil · terakhir ' + fmt(x.terakhir) + '</div></div></div>').join('');
-  } catch (e) { $('ketA').textContent = 'Gagal memuat.'; }
+function renderAkun() {
+  if (!akunData) { $('ketA').textContent = 'Memuat…'; return; }
+  const a = akunData;
+  $('ketA').textContent = a.filter(x => x.online).length + ' aktif · ' + a.filter(x => !x.online).length + ' nonaktif';
+  $('listA').innerHTML = a.map(x => '<div class="it"><div><b>' + esc(x.nama) + '</b> <span class="tag ' + (x.online ? 'on">Aktif' : 'off">Nonaktif') + '</span>' +
+    '<div class="mut">' + esc(x.device) + ' · ' + esc(x.role) + '</div>' +
+    '<div class="mut">' + x.scan + ' kupon dipakai · terakhir ' + fmt(x.terakhir) + '</div></div></div>').join('');
+}
+async function muatAkun(diam, segar) {
+  if (sibuk.a) return; sibuk.a = true;
+  if (segar) $('ketA').textContent = 'Memuat…';
+  try { akunData = (await kirim({ act: 'akun', segar: !!segar })).akun.sort((x, y) => y.online - x.online); renderAkun(); }
+  catch (e) { if (!diam) $('ketA').textContent = 'Gagal memuat.'; }
+  sibuk.a = false;
 }
 
 $('btnLogin').onclick = () => login(false);
@@ -209,7 +224,7 @@ $('btnUndo').onclick = () => { last = ''; proses($('manual').value, 'undo'); $('
 $('btnKeluar').onclick = () => { localStorage.removeItem('pin'); location.reload(); };
 $('nav').onclick = e => { if (e.target.dataset.t) pilih(e.target.dataset.t); };
 $('btnSegar').onclick = () => muatKupon(true);
-$('btnAkun').onclick = muatAkun;
+$('btnAkun').onclick = () => muatAkun(false, true);
 $('cari').oninput = $('filter').onchange = renderKupon;
 $('listK').onclick = e => { if (e.target.dataset.k) batalkan(e.target.dataset.k); };
 if (pin) login(true);
