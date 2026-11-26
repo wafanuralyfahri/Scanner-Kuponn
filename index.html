@@ -88,7 +88,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
-const API = 'https://script.google.com/macros/library/d/1H3mhdfhYyne8NIZHgVfU7I8b3Q56VhSJMk-xvro84Zqa9wVJZoctHDWp/4';   // URL dari Deploy > Web app
+const API = 'https://script.google.com/macros/library/d/1H3mhdfhYyne8NIZHgVfU7I8b3Q56VhSJMk-xvro84Zqa9wVJZoctHDWp/5';   // URL dari Deploy > Web app
 let pin = localStorage.getItem('pin') || '', role = '', busy = false, last = '', lastT = 0, scanner, ident = '', tab = 'scan', daftar = [];
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
