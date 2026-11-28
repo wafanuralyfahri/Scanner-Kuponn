@@ -4,31 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scanner Kupon Zakat</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <style>
 :root{--bg:#f3f1ea;--fg:#1c2b24;--card:#fff;--mut:#66736c;--line:#d9d5c8;--ok:#1d7a47;--warn:#b86e00;--bad:#b83227;--btn:#1c4a38}
 @media(prefers-color-scheme:dark){:root{--bg:#121815;--fg:#eaf0ec;--card:#1b2420;--mut:#98a79f;--line:#2e3a34;--btn:#3e8a68}}
 *{box-sizing:border-box}
-[hidden]{display:none!important}
-body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:520px;margin-inline:auto}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:480px;margin-inline:auto}
 h1{font-size:1.3rem;margin:0 0 4px}
 .mut{color:var(--mut);font-size:.9rem}
+#stat{margin:0 0 8px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
-input,select{width:100%;padding:12px;font-size:1rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+input{width:100%;padding:12px;font-size:1rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
 button{padding:12px 16px;font-size:1rem;border:0;border-radius:8px;background:var(--btn);color:#fff;cursor:pointer}
 button.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
-button.on{outline:2px solid var(--fg)}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
 .row{display:flex;gap:8px;margin-top:8px}
-#nav{display:flex;gap:8px;margin:10px 0}#nav button{flex:1}
 #reader{width:100%;border-radius:8px;overflow:hidden}
 #hasil{display:none;text-align:center;color:#fff;border-radius:10px;padding:18px;margin:12px 0}
 #hasil b{display:block;font-size:1.8rem;line-height:1.2}
 #hasil span{font-size:1.1rem;font-variant-numeric:tabular-nums}
+#hasil small{display:block;margin-top:6px;font-size:.95rem}
+#warn{border-color:var(--bad)}
+#warn div div{margin-top:6px}
 .BERHASIL,.DIBATALKAN{background:var(--ok)}.SUDAH{background:var(--warn)}.INVALID{background:var(--bad)}.MERIKSA{background:#4a5a52}
-.it{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
-.it button{padding:8px 12px;font-size:.9rem;flex:none}
-.tag{font-size:.75rem;padding:2px 8px;border-radius:99px;color:#fff;vertical-align:middle}
-.tag.on{background:var(--ok)}.tag.off{background:var(--mut)}.tag.t{background:var(--warn)}.tag.b{background:var(--mut)}
 </style>
 </head>
 <body>
@@ -43,195 +43,253 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 
 <div id="app" hidden>
   <p class="mut" id="info">Menyambung…</p>
-  <div id="nav" hidden>
-    <button data-t="scan" class="on">Scan</button>
-    <button data-t="kupon" class="alt">Kupon</button>
-    <button data-t="akun" class="alt">Akun</button>
+  <p class="mut" id="stat"></p>
+  <div id="hasil" role="status" aria-live="assertive"></div>
+  <div id="warn" class="card" hidden>
+    <b>Perlu dicek</b>
+    <div id="warnList"></div>
+    <div class="row"><button class="alt" id="btnWarn">Tutup</button></div>
   </div>
-
-  <div id="pscan">
-    <div id="hasil" role="status" aria-live="assertive"></div>
-    <div class="card"><div id="reader"></div></div>
-    <div class="card">
-      <label for="manual">Ketik kode manual</label>
-      <input id="manual" inputmode="numeric" autocomplete="off">
-      <div class="row">
-        <button id="btnManual">Periksa kode</button>
-        <button id="btnUndo" class="alt" hidden>Batalkan pakai</button>
-      </div>
+  <div class="card"><div id="reader"></div></div>
+  <div class="card">
+    <label for="manual">Ketik kode manual</label>
+    <input id="manual" inputmode="numeric" autocomplete="off">
+    <div class="row">
+      <button id="btnManual">Periksa kode</button>
+      <button id="btnUndo" class="alt" hidden>Batalkan pakai</button>
     </div>
   </div>
-
-  <div id="pkupon" hidden>
-    <div class="card">
-      <input id="cari" inputmode="numeric" placeholder="Cari kode…" aria-label="Cari kode">
-      <div class="row">
-        <select id="filter" aria-label="Filter status"><option value="">Semua</option><option value="1">Terpakai</option><option value="0">Belum terpakai</option></select>
-        <button class="alt" id="btnSegar">Muat ulang</button>
-      </div>
-      <p class="mut" id="ketK"></p>
-      <div id="listK"></div>
-    </div>
-  </div>
-
-  <div id="pakun" hidden>
-    <div class="card">
-      <div class="row" style="margin-top:0;justify-content:space-between;align-items:center">
-        <span class="mut" id="ketA"></span><button class="alt" id="btnAkun">Muat ulang</button>
-      </div>
-      <div id="listA"></div>
-    </div>
-  </div>
-
   <button class="alt" id="btnKeluar">Keluar</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbw0kOibgwGydXLITRCNEcpehhsx0neVj1BeXuetrMB8qFzs2tJsgXZc2GP5Z2q_3dRr7w/exec';   // URL dari Deploy > Web app
-let pin = localStorage.getItem('pin') || '', role = '', busy = false, last = '', lastT = 0, scanner, ident = '', tab = 'scan', daftar = [];
 const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmt = ms => ms ? new Date(ms).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }) : '-';
+const baca = (k, def) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? def : v; } catch (e) { return def; } };
+const tulis = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const tunggu = ms => new Promise(r => setTimeout(r, ms));
 
-async function kirim(data) {
-  if (API.indexOf('GANTI') >= 0) throw new Error('URL API belum diisi di index.html');
-  const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ pin }, data)) });
-  const t = await r.text();
-  try { return JSON.parse(t); }
-  catch (e) { throw new Error('server mengembalikan error: ' + t.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140)); }
+let pin = localStorage.getItem('pin') || '', role = '', nama = '', device = '', ident = '';
+let busy = false, last = '', lastT = 0, scanner;
+let db = new Map(), siap = false, srv = { total: 0, terpakai: 0 }, ver = '';   // db: kode -> [kode, terpakai, waktu, pemilik, device]
+let antre = baca('antre', []), kirimSedang = false, sinkronSedang = false, gen = 0;
+
+// Bangunkan server Apps Script selagi petugas mengetik PIN (menghilangkan cold start saat login)
+fetch(API, { mode: 'no-cors' }).catch(() => {});
+
+async function kirim(data, ms) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms || 20000);
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ pin }, data)), signal: c.signal });
+    return await r.json();
+  } finally { clearTimeout(t); }
 }
+
+function bersih() { ['pin', 'who', 'snap', 'antre'].forEach(k => localStorage.removeItem(k)); }
+function keluarPaksa() { bersih(); location.reload(); }
 
 function buka() { $('login').hidden = true; $('app').hidden = false; mulai(); }
 
 async function login(auto) {
   $('err').textContent = '';
-  if (!auto) pin = $('pin').value.trim();
+  if (!auto) { pin = $('pin').value.trim(); if (!pin) return; $('err').textContent = 'Memeriksa…'; }
   if (auto) buka(); // petugas yang sudah pernah masuk langsung melihat kamera
   try {
     const d = await kirim({ act: 'login' });
     if (!d.ok) {
-      if (auto) { localStorage.removeItem('pin'); location.reload(); } else $('err').textContent = 'PIN salah.';
+      if (auto) keluarPaksa(); else $('err').textContent = 'PIN salah.';
       return;
     }
     localStorage.setItem('pin', pin);
-    role = d.role;
-    if (role === 'admin') {
-      $('btnUndo').hidden = $('nav').hidden = false;
-      setTimeout(() => { muatKupon(false, true); muatAkun(true); }, 300); // data admin disiapkan lebih dulu
-      setInterval(() => { if (tab === 'kupon') muatKupon(false, true); else if (tab === 'akun') muatAkun(true); }, 20000);
-    } else ['nav', 'pkupon', 'pakun'].forEach(id => $(id).remove()); // menu admin dihapus total untuk petugas
-    if (!auto) buka();
-    ident = d.nama + ' · ' + d.device; render(d);
-    setInterval(() => kirim({ act: 'ping' }).catch(() => {}), 120000); // tanda aktif + jaga server hangat
+    role = d.role; nama = d.nama; device = d.device; srv = d;
+    tulis('who', { nama, device, role });
+    $('btnUndo').hidden = role !== 'admin';
+    ident = nama + ' · ' + device;
+    if (!auto) { $('err').textContent = ''; buka(); }
+    render(); sinkron(); kirimAntre();
   } catch (e) {
-    const m = 'Gagal terhubung: ' + e.message;
-    if (auto) $('info').textContent = m; else $('err').textContent = m;
+    if (auto) $('info').textContent = (ident || 'Offline') + ' · belum tersambung, mencoba lagi otomatis…';
+    else $('err').textContent = 'Gagal terhubung. Periksa internet dan URL API.';
   }
 }
 
-function render(d) { $('info').textContent = ident + ' · Terpakai ' + d.terpakai + ' dari ' + d.total; }
+// ---------- Data lokal ----------
+function hit() { let t = 0; db.forEach(r => { if (r[1]) t++; }); return { total: db.size, terpakai: t }; }
 
+function render() {
+  const h = siap ? hit() : srv;
+  $('info').textContent = ident + (h.total ? ' · Terpakai ' + h.terpakai + ' dari ' + h.total : ' · Menyambung…');
+}
+
+function statusKirim(s) {
+  const n = antre.length;
+  $('stat').textContent = s === 'gagal' ? 'Offline — ' + n + ' scan tertunda, dikirim otomatis' : n ? 'Menyimpan ' + n + ' scan…' : (siap ? 'Semua scan tersimpan ✓' : '');
+}
+
+function terapkan(d) {
+  const m = new Map();
+  d.forEach(r => { if (!m.has(r[0])) m.set(r[0], r); });
+  antre.forEach(x => { // scan yang belum terkirim tetap berlaku di atas data server
+    const r = m.get(x.kode);
+    if (x.lokal === 'BERHASIL' && r && !r[1]) m.set(x.kode, [x.kode, 1, x.t, nama, device]);
+  });
+  db = m; siap = true;
+}
+function simpanSnap() { tulis('snap', { ver, d: Array.from(db.values()) }); }
+
+function ubahLokal(kode, h) {
+  if (!siap) return;
+  const x = h.hasil;
+  if (x === 'BERHASIL') db.set(kode, [kode, 1, Date.now(), nama, device]);
+  else if (x === 'SUDAH DIPAKAI') db.set(kode, [kode, 1, h.waktu || 0, h.oleh || '', h.device || '']);
+  else if (x === 'DIBATALKAN' || x === 'BELUM TERPAKAI') db.set(kode, [kode, 0]);
+  else if (x === 'INVALID') db.delete(kode);
+}
+
+// ---------- Tampilan hasil ----------
 function tampil(d) {
   const h = $('hasil');
   const map = { 'MERIKSA': ['MERIKSA', 'Memeriksa…'], 'BERHASIL': ['BERHASIL', 'BERHASIL'], 'SUDAH DIPAKAI': ['SUDAH', 'SUDAH DIGUNAKAN'],
-    'INVALID': ['INVALID', 'INVALID'], 'DIBATALKAN': ['DIBATALKAN', 'DIBATALKAN'] };
+    'INVALID': ['INVALID', 'INVALID'], 'DIBATALKAN': ['DIBATALKAN', 'DIBATALKAN'], 'ULANG': ['MERIKSA', 'DATA DIPERBARUI — PINDAI ULANG'] };
   const m = map[d.hasil] || ['INVALID', d.hasil || 'ERROR'];
   h.className = m[0]; h.style.display = 'block';
-  h.innerHTML = '<b>' + esc(m[1]) + '</b><span>' + esc(d.kode || '') + '</span>' +
-    (d.oleh ? '<div><small>Dipakai ' + esc(d.oleh) + ' · ' + fmt(d.waktu) + '</small></div>' : '');
+  h.textContent = '';
+  const b = document.createElement('b'), s = document.createElement('span');
+  b.textContent = m[1]; s.textContent = d.kode || '';
+  h.append(b, s);
+  if (d.catatan) { const t = document.createElement('small'); t.textContent = d.catatan; h.append(t); }
   if (navigator.vibrate) navigator.vibrate(d.hasil === 'MERIKSA' ? 40 : d.hasil === 'BERHASIL' ? 120 : [200, 100, 200]);
 }
 
-async function proses(kode, act) {
+function peringatan(kode, teks) {
+  const el = document.createElement('div');
+  el.textContent = kode + ' — ' + teks;
+  $('warnList').append(el); $('warn').hidden = false;
+}
+
+// ---------- Scan ----------
+function proses(kode, act) {
   kode = String(kode).trim();
   if (!kode || busy || (kode === last && Date.now() - lastT < 5000)) return;
-  busy = true; last = kode; lastT = Date.now();
+  last = kode; lastT = Date.now();
+  if (act === 'undo' || !siap) return langsung(kode, act);   // belum ada data lokal / pembatalan: tanya server langsung
+
+  busy = true; setTimeout(() => busy = false, 700);
+  const r = db.get(kode);
+  let lokal, catatan = '';
+  if (!r) lokal = 'INVALID';
+  else if (r[1]) { lokal = 'SUDAH DIPAKAI'; if (r[3]) catatan = 'oleh ' + r[3]; }
+  else { lokal = 'BERHASIL'; db.set(kode, [kode, 1, Date.now(), nama, device]); }
+  tampil({ hasil: lokal, kode, catatan });                    // hasil langsung tampil, tanpa menunggu server
+  antre.push({ id: uid(), kode, act: 'scan', cek: lokal !== 'BERHASIL', lokal, t: Date.now() });
+  tulis('antre', antre); render(); statusKirim('kirim'); kirimAntre();
+}
+
+async function langsung(kode, act) {
+  busy = true;
   tampil({ hasil: 'MERIKSA', kode });
   try {
     const d = await kirim({ act: act || 'scan', kode });
-    if (d.hasil === 'PIN SALAH') { localStorage.removeItem('pin'); location.reload(); return; }
+    if (d.hasil === 'PIN SALAH') return keluarPaksa();
     tampil(d);
-    if (d.total) render(d);
+    ubahLokal(kode, d);
+    if (d.total) srv = d;
+    render();
   } catch (e) { tampil({ hasil: 'GAGAL TERHUBUNG', kode }); last = ''; }
   setTimeout(() => busy = false, 1200);
 }
 
+// Kirim scan ke server berkelompok. Gagal/offline = diulang otomatis (aman: tiap scan punya id unik).
+async function kirimAntre() {
+  if (kirimSedang) return;
+  kirimSedang = true;
+  try {
+    while (antre.length) {
+      const paket = antre.slice(0, 20);
+      try {
+        const d = await kirim({ act: 'batch', items: paket.map(x => ({ id: x.id, kode: x.kode, act: x.act, cek: x.cek })) });
+        if (d.hasil === 'PIN SALAH') return keluarPaksa();
+        if (!d.ok || !d.res) throw new Error(d.hasil || 'gagal');
+        antre.splice(0, paket.length); tulis('antre', antre);
+        gen++;
+        paket.forEach((x, i) => selaraskan(x, d.res[i] || {}));
+        srv = d; simpanSnap(); render(); statusKirim('ok');
+      } catch (e) { statusKirim('gagal'); await tunggu(3000); }
+    }
+  } finally { kirimSedang = false; }
+  statusKirim('ok');
+}
+
+// Bandingkan dugaan lokal dengan keputusan server (server yang berwenang).
+function selaraskan(x, h) {
+  if (!h.hasil) return;
+  const k = x.kode;
+  if (h.hasil === x.lokal) { if (h.hasil === 'SUDAH DIPAKAI') ubahLokal(k, h); return; }
+  if (x.lokal === 'BERHASIL' && h.hasil === 'SUDAH DIPAKAI' && h.oleh === nama && h.device === device) return; // kiriman ulang milik sendiri
+  ubahLokal(k, h);
+  if (x.lokal === 'BERHASIL') {
+    const teks = h.hasil === 'SUDAH DIPAKAI' ? 'ternyata sudah dipakai' + (h.oleh ? ' oleh ' + h.oleh : '') + ' — jangan diberikan / tarik kembali' : 'kode tidak ditemukan di server';
+    peringatan(k, teks);
+    tampil({ hasil: h.hasil, kode: k, catatan: 'DITOLAK SERVER' });
+  } else if (h.hasil === 'BELUM TERPAKAI') {
+    tampil({ hasil: 'ULANG', kode: k });
+  } else {
+    tampil({ hasil: h.hasil, kode: k, catatan: h.oleh ? 'oleh ' + h.oleh : '' });
+  }
+}
+
+// ---------- Sinkron berkala (juga menjaga server tetap "hangat") ----------
+async function sinkron() {
+  if (sinkronSedang || kirimSedang || document.hidden || !pin || $('app').hidden) return;
+  sinkronSedang = true;
+  const g = gen;
+  try {
+    const d = await kirim({ act: 'sinkron', ver }, 30000);
+    if (d.hasil === 'PIN SALAH') return keluarPaksa();
+    if (d.ok && g === gen && !kirimSedang) {
+      if (!d.same) { ver = d.ver || ''; terapkan(d.daftar); simpanSnap(); }
+      render(); statusKirim('ok');
+    }
+  } catch (e) {
+  } finally { sinkronSedang = false; }
+}
+
 function mulai() {
   if (scanner) return;
-  scanner = new Html5Qrcode('reader', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128] });
-  scanner.start({ facingMode: 'environment' }, { fps: 15, aspectRatio: 1, qrbox: { width: 250, height: 250 } },
-    txt => { if (tab === 'scan') proses(txt); }, () => {}).catch(() => { $('reader').textContent = 'Kamera tidak bisa dibuka. Izinkan akses kamera.'; });
-}
-
-// ---------- Fitur admin ----------
-function pilih(t) {
-  tab = t;
-  ['scan', 'kupon', 'akun'].forEach(x => $('p' + x).hidden = x !== t);
-  document.querySelectorAll('#nav button').forEach(b => b.className = b.dataset.t === t ? 'on' : 'alt');
-  if (t === 'kupon') { renderKupon(); muatKupon(false, true); }
-  if (t === 'akun') { renderAkun(); muatAkun(true); }
-}
-
-const sibuk = {}; let loadedK = false, akunData = null;
-async function muatKupon(segar, diam) {
-  if (sibuk.k) return; sibuk.k = true;
-  if (segar) $('ketK').textContent = 'Memuat…';
-  try { const d = await kirim({ act: 'daftar', segar: !!segar }); daftar = d.daftar; loadedK = true; render(d); renderKupon(); }
-  catch (e) { if (!diam) $('ketK').textContent = 'Gagal memuat.'; }
-  sibuk.k = false;
-}
-
-function renderKupon() {
-  if (!loadedK) { $('ketK').textContent = 'Memuat…'; return; }
-  const f = $('cari').value.trim(), st = $('filter').value, rows = [];
-  daftar.forEach((r, i) => {
-    if ((st === '1' && !r[1]) || (st === '0' && r[1]) || (f && !r[0].includes(f))) return;
-    rows.push(r);
+  scanner = new Html5Qrcode('reader', {
+    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128],
+    useBarCodeDetectorIfSupported: true,                     // dekoder bawaan browser (lebih cepat) bila tersedia
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   });
-  $('ketK').textContent = rows.length + ' kode' + (rows.length > 200 ? ' (menampilkan 200 pertama, gunakan pencarian)' : '');
-  $('listK').innerHTML = rows.slice(0, 200).map(r =>
-    '<div class="it"><div><b>' + (r[1] ? '<s>' + esc(r[0]) + '</s>' : esc(r[0])) + '</b> <span class="tag ' + (r[1] ? 't">Terpakai' : 'b">Belum') + '</span>' +
-    (r[1] ? '<div class="mut">' + fmt(r[2]) + ' · ' + esc(r[3]) + ' · ' + esc(r[4]) + '</div>' : '') + '</div>' +
-    (r[1] ? '<button class="alt" data-k="' + esc(r[0]) + '">Batalkan</button>' : '') + '</div>').join('') || '<p class="mut">Tidak ada data.</p>';
-}
-
-async function batalkan(k) {
-  if (!confirm('Batalkan pemakaian kode ' + k + '?')) return;
-  try {
-    const d = await kirim({ act: 'undo', kode: k });
-    if (d.hasil !== 'DIBATALKAN') { alert(d.hasil || 'Gagal'); return; }
-    const i = daftar.findIndex(r => r[0] === k); if (i >= 0) daftar[i] = [k, 0];
-    renderKupon(); render(d);
-  } catch (e) { alert('Gagal terhubung.'); }
-}
-
-function renderAkun() {
-  if (!akunData) { $('ketA').textContent = 'Memuat…'; return; }
-  const a = akunData;
-  $('ketA').textContent = a.filter(x => x.online).length + ' aktif · ' + a.filter(x => !x.online).length + ' nonaktif';
-  $('listA').innerHTML = a.map(x => '<div class="it"><div><b>' + esc(x.nama) + '</b> <span class="tag ' + (x.online ? 'on">Aktif' : 'off">Nonaktif') + '</span>' +
-    '<div class="mut">' + esc(x.device) + ' · ' + esc(x.role) + '</div>' +
-    '<div class="mut">' + x.scan + ' kupon dipakai · terakhir ' + fmt(x.terakhir) + '</div></div></div>').join('');
-}
-async function muatAkun(diam, segar) {
-  if (sibuk.a) return; sibuk.a = true;
-  if (segar) $('ketA').textContent = 'Memuat…';
-  try { akunData = (await kirim({ act: 'akun', segar: !!segar })).akun.sort((x, y) => y.online - x.online); renderAkun(); }
-  catch (e) { if (!diam) $('ketA').textContent = 'Gagal memuat.'; }
-  sibuk.a = false;
+  scanner.start({ facingMode: 'environment' }, {
+    fps: 15, aspectRatio: 1, disableFlip: true,
+    qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; }
+  }, txt => proses(txt), () => {}).catch(() => { $('reader').textContent = 'Kamera tidak bisa dibuka. Izinkan akses kamera.'; });
 }
 
 $('btnLogin').onclick = () => login(false);
+$('pin').addEventListener('keydown', e => { if (e.key === 'Enter') login(false); });
 $('btnManual').onclick = () => { proses($('manual').value); $('manual').value = ''; };
 $('btnUndo').onclick = () => { last = ''; proses($('manual').value, 'undo'); $('manual').value = ''; };
-$('btnKeluar').onclick = () => { localStorage.removeItem('pin'); location.reload(); };
-$('nav').onclick = e => { if (e.target.dataset.t) pilih(e.target.dataset.t); };
-$('btnSegar').onclick = () => muatKupon(true);
-$('btnAkun').onclick = () => muatAkun(false, true);
-$('cari').oninput = $('filter').onchange = renderKupon;
-$('listK').onclick = e => { if (e.target.dataset.k) batalkan(e.target.dataset.k); };
-if (pin) login(true);
+$('btnWarn').onclick = () => { $('warn').hidden = true; $('warnList').textContent = ''; };
+$('btnKeluar').onclick = () => {
+  if (antre.length && !confirm(antre.length + ' scan belum terkirim akan hilang. Tetap keluar?')) return;
+  keluarPaksa();
+};
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { sinkron(); kirimAntre(); } });
+setInterval(() => { sinkron(); kirimAntre(); }, 10000);
+
+if (pin) {
+  const w = baca('who', null), sn = baca('snap', null);
+  if (w) {
+    nama = w.nama; device = w.device; role = w.role; ident = nama + ' · ' + device;
+    $('btnUndo').hidden = role !== 'admin';
+    if (sn && sn.d) { ver = sn.ver || ''; terapkan(sn.d); render(); statusKirim('ok'); } // scan langsung bisa dipakai, bahkan sebelum login selesai
+  }
+  login(true);
+}
 </script>
 </body>
 </html>
